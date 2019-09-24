@@ -56,13 +56,14 @@ def get_lensing_profile(parameter_dict, args, return_all_parts=False):
         Am = parameter_dict["Am"]
     if has_RM_selection:
         A = parameter_dict["A_matrix"] #linear parameters
+        powers = args["powers"]
         upper_mask = args["upper_mask"]
         lower_mask = args["lower_mask"]
         lowest_index = args["lowest_index"]
         x = args["x"] #log(R) with a pivot at 30 Mpc/h
         X = np.ones((len(x), len(A))) #Matrix of powers of ln(R)
         for i in range(0, len(A)):
-            X[:, i] = x**A[i]
+            X[:, i] = A[i] * x**powers[i]
     if has_miscentering:
         f_mis = parameter_dict["f_mis"]
         tau = parameter_dict["tau_mis"]
