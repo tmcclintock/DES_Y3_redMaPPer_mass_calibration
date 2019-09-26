@@ -27,9 +27,7 @@ def get_args_dictionary(analysis_name, z_index, lambda_index, model_choices):
         else:
             raise Exception("Incorrect Buzzard analysis option.")
 
-    #Add the prior information on the args as appropriate
-
-    #Loop over modeling scenarios and add appropriate things to the args
+    #For each modeling scenario add the extra information
     if "has_RM_selection" in model_choices:
         args["has_RM_selection"] = True
         args["powers"] = np.array([2, 3, 4])
@@ -39,8 +37,24 @@ def get_args_dictionary(analysis_name, z_index, lambda_index, model_choices):
         args["lowest_index"] = np.argmax(R > 0.2)
         args["x"] = np.log(R/30.)
         args["X"] = np.ones((len(x), len(powers)))
-        
 
+        A_mean = np.load("./prior_information/A_means.npy")[z_index, lambda_index]
+        A_cov = np.load("./prior_information/A_covs.npy")[z_index, lambda_index]
+        args["A_matrix_prior_means"] = A_mean
+        args["A_matrix_prior_cov_inv"] = np.linalg.inv(A_cov)
+
+    if "has_multiplicative_bias" in model_choices:
+        args["has_multiplicative_bias"] = True
+        print("Can't do multiplicative bias yet. No priors!")
+
+    if "has_miscentering" in model_choices:
+        args["has_miscentering"] = True
+        print("Can't do miscentering yet. No priors!")
+
+    if "has_boost_factors" in model_choics:
+        args["has_boost_factors"] = True
+        print("Can't do boost factors yet. No priors or data!")
+        
     #Return the args dictionary
     return args
 
@@ -97,9 +111,11 @@ def get_Buzzard_args(z_index, lambda_index, RM):
         'non linear':'halofit'}
     class_cosmo = Class()
     class_cosmo.set(class_params)
+    print("Running CLASS for P(k)")
     class_cosmo.compute()
     P_nl = np.array([class_cosmo.pk(ki, z) for ki in k])*h**3
     P_lin = np.array([class_cosmo.pk_lin(ki, z) for ki in k])*h**3
+    print("CLASS computation complete")
     xi_lin = ct.xi.xi_mm_at_r(r, k/h, P_lin)
     xi_nl  = ct.xi.xi_mm_at_r(r, k/h, P_nl)
     biases = ct.bias.bias_at_M(M, k, P_lin, Omega_m)
