@@ -36,7 +36,7 @@ def get_args_dictionary(analysis_name, z_index, lambda_index, model_choices):
         args["upper_mask"] = np.where(R > 30.) #30 Mpc/h com. cut
         args["lowest_index"] = np.argmax(R > 0.2)
         args["x"] = np.log(R/30.)
-        args["X"] = np.ones((len(x), len(powers)))
+        args["X"] = np.ones((len(args["x"]), len(args["powers"])))
 
         A_mean = np.load("./prior_information/A_means.npy")[z_index, lambda_index]
         A_cov = np.load("./prior_information/A_covs.npy")[z_index, lambda_index]
@@ -51,7 +51,7 @@ def get_args_dictionary(analysis_name, z_index, lambda_index, model_choices):
         args["has_miscentering"] = True
         print("Can't do miscentering yet. No priors!")
 
-    if "has_boost_factors" in model_choics:
+    if "has_boost_factors" in model_choices:
         args["has_boost_factors"] = True
         print("Can't do boost factors yet. No priors or data!")
         
@@ -64,6 +64,8 @@ def get_Buzzard_args(z_index, lambda_index, RM):
 
     zstr = ["0.2_0.35", "0.35_0.5", "0.5_0.65"][z_index]
     lstr = ["20_30", "30_45", "45_60", "60_10000"][lambda_index]
+    z_title = ["0.2,0.35", "0.35,0.5" ,"0.5, 0.65"][z_index]
+    lam_title = ["20,30", "30,45", "45,60", "60,\infty"][lambda_index]
     
     base = "../data/DeltaSigma_from_Buzzard/"
     if RM:
@@ -74,11 +76,12 @@ def get_Buzzard_args(z_index, lambda_index, RM):
     columns = ["R", "DeltaSigma", "DeltaSigma_err"]
     dat = pd.read_csv(inpath, sep = ' ', skiprows=0, usecols=[0,1,2])
     dat.columns = columns
-    Cov = np.diagonal(dat["DeltaSigma_err"]**2)
+    DS_data = dat.DeltaSigma
+    Cov = np.diag(dat["DeltaSigma_err"]**2)
+    DS_unc = dat["DeltaSigma_err"]
 
-
-    index = 4*z_index + lamda_index
-    z = np.loadtxt("Buzzard_redMaPPer_redshift_information.dat")[4, index]
+    index = 4*z_index + lambda_index
+    z = np.loadtxt("../data/DeltaSigma_from_Buzzard/Buzzard_redMaPPer_redshift_information.dat")[index, 4]
     richness = np.array([25, 37.5, 52.5, 70])[lambda_index]
     R_lambda = (richness/100.)**0.2 #Mpc/h comoving
 
@@ -92,22 +95,45 @@ def get_Buzzard_args(z_index, lambda_index, RM):
     r = np.logspace(-2, 3, num=1000) #Mpc/h comoving; 3d radii
     R = np.logspace(-2, 2.4, 1000, base=10) #Mpc/h comoving; 2d projected radii
     #k = np.logspace(-5, 3, num=4000) #1/Mpc comoving; wavenumbers
-    k = np.logspace(-3, 2, num=2000) #1/Mpc comoving; wavenumbers
-    M = np.logspace(12, 17, 1000) #Msun/h; halo masses
+    k = np.logspace(-3, 2, num=1000) #1/Mpc comoving; wavenumbers
+    M = np.logspace(12, 17, 500) #Msun/h; halo masses
     
-    args["R_edges"] = np.logspace(np.log10(0.0323), np.log10(30.), num=15+1) * h * (1+z)
+    R_edges = np.logspace(np.log10(0.0323), np.log10(30.), num=15+1)
 
+    #PERFORM SCALE CUTS HERE
+    R_mid = (R_edges[:-1] + R_edges[1:])/2.
+    cut = R_mid > 0.2 #cut at 200 kpc phys.
+    DeltaSigma_data = DS_data[cut]
+    DeltaSigma_unc = DS_unc[cut]
+    Cov = Cov[cut]
+    Cov = Cov[:, cut]
+    Re_inds = []
+    for i in range(len(R_edges)-1):
+        if R_edges[i] > 0.4 - R_edges[i+1]: #cut criteria
+            Re_inds.append(i-1)
+    Re_inds.append(len(R_edges)-1)
+    R_edges = R_edges[Re_inds]
+    R_mid = (R_edges[:-1] + R_edges[1:])/2.
 
+    #Convert units to Mpc/h comoving
+    R_edges *= h * (1+z)
+    R_mid  *= h * (1+z)
+    DeltaSigma_data /= h * (1+z)**2
+    DeltaSigma_unc /= h * (1+z)**2
+    Cov /= (h * (1+z)**2)
+    
     #Precompute theory quantities
     class_params = { # 'N_eff': 3.04
         'output': 'mPk',
         "h":h,
-        "sigma8":0.82,
+        "sigma8": 0.82,
         "n_s":0.96,
-        'Omega_b': 0.047,
-        "Omega_cdm":Omega_m - 0.47,
+        "Omega_b":0.047,
+        "Omega_cdm":Omega_m - 0.047,
+        "N_eff":3.04,
+        'YHe':0.24755048455476272,#By hand, default value
         'P_k_max_1/Mpc':100.,
-        'z_max_pk':1.0,
+        'z_max_pk':0.5,
         'non linear':'halofit'}
     class_cosmo = Class()
     class_cosmo.set(class_params)
@@ -120,14 +146,13 @@ def get_Buzzard_args(z_index, lambda_index, RM):
     xi_nl  = ct.xi.xi_mm_at_r(r, k/h, P_nl)
     biases = ct.bias.bias_at_M(M, k, P_lin, Omega_m)
     bias_spline = IUS(np.log(M), biases)
-    
-
-    #PERFORM SCALE CUTS HERE
 
     #Assemble the args dict
     args = {"z":z, "richness":richness, "R_lambda":R_lambda, "h":h,
             "Omega_m":Omega_m, "Sigma_crit_inverse":Sigma_crit_inverse,
-            "DeltaSigma_data": dat.DeltaSigma, "DeltaSigma_cov":Cov,
+            "DeltaSigma_data": DeltaSigma_data, "DeltaSigma_cov":Cov,
+            "DeltaSigma_unc": DeltaSigma_unc, "R_mid":R_mid,
             "r":r, "R":R, "k":k/h, "P_lin":P_lin, "P_nl":P_nl,
-            "xi_lin":xi_lin, "xi_nl":xi_nl, "bias_spline":bias_spline}
+            "xi_lin":xi_lin, "xi_nl":xi_nl, "bias_spline":bias_spline,
+            "R_edges":R_edges, "z_title":z_title, "lambda_title":z_title}
     return args

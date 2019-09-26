@@ -38,13 +38,13 @@ def get_lensing_profile(parameter_dict, args, return_all_parts=False):
     bias_spline = args["bias_spline"] #interpolator for halo bias
 
     #boolean variables for the analysis
-    has_multiplicative_bias = args["has_multiplicative_bias"]
+    """has_multiplicative_bias = args["has_multiplicative_bias"]
     has_reduced_shear = args["has_reduced_shear"]
     has_RM_selection = args["has_RM_selection"]
     has_miscentering = args["has_miscentering"]
-    has_boost_factors = args["has_boost_factors"]
+    has_boost_factors = args["has_boost_factors"]"""
 
-    output_dictionary = {}
+    output_dict = {}
     
     ####
     #(2) Pull out parameters
@@ -52,9 +52,9 @@ def get_lensing_profile(parameter_dict, args, return_all_parts=False):
     M = parameter_dict["M"] #Msun/h; 200m
     c = parameter_dict["c"] #concentration; 200m
     
-    if has_multiplicative_bias:
+    if "has_multiplicative_bias" in args:
         Am = parameter_dict["Am"]
-    if has_RM_selection:
+    if "has_RM_selection" in args:
         A = parameter_dict["A_matrix"] #linear parameters
         powers = args["powers"]
         upper_mask = args["upper_mask"]
@@ -64,18 +64,18 @@ def get_lensing_profile(parameter_dict, args, return_all_parts=False):
         X = args["X"] #np.ones((len(x), len(A))) #Matrix of powers of ln(R)
         for i in range(0, len(A)):
             X[:, i] = A[i] * x**powers[i]
-    if has_miscentering:
+    if "has_miscentering" in args:
         f_mis = parameter_dict["f_mis"]
         tau = parameter_dict["tau_mis"]
         R_mis = tau*R_lambda
-    if has_boost_factors:
+    if "has_boost_factors" in args:
         B_0 = parameter_dict["B_0"]
         R_scale_boost = parameter_dict["R_scale_boost"]
 
     ####
     #(3) Compute the basic parts of the model
     ####
-    xi_nfw = ct.xi.xi_nfw_at_R(r, M, c, Omega_m)
+    xi_nfw = ct.xi.xi_nfw_at_r(r, M, c, Omega_m)
     bias = bias_spline(np.log(M))
     xi_2h = ct.xi.xi_2halo(bias, xi_nl) #Can choose a different xi_mm here
     xi_hm = ct.xi.xi_hm(xi_nfw, xi_2h) #3d halo matter correlation function
@@ -91,23 +91,24 @@ def get_lensing_profile(parameter_dict, args, return_all_parts=False):
     output_dict["R_2d"] = R
     output_dict["Sigma"] = Sigma
 
-    if has_RM_selection:
+    if "has_RM_selection" in args:
         F_model = 1 + X @ A
         F_model[upper_mask] = 1. #large scales are unaffected
         F_model[lower_mask] = F_model[lowest_index] #constant at small scales
         Sigma *= F_model
         output_dict["Sigma_RM_selection"] = Sigma
+        output_dict["F_model"] = F_model
 
-    if has_miscentering:
+    if "has_miscentering" in args:
         print("Miscentering not implemented yet!")
 
-    if has_multiplicative_bias:
+    if "has_multiplicative_bias" in args:
         print("Multiplicative bias not implemented yet!")
 
-    if has_reduced_shear:
+    if "has_reduced_shear" in args:
         print("Reduced shear not implemented yet!")
 
-    if has_boost_factors:
+    if "has_boost_factors" in args:
         print("Boost factors not implemented yet!")
 
     DeltaSigma = ct.deltasigma.DeltaSigma_at_R(R, R, Sigma, M, c, Omega_m)

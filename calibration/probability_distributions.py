@@ -4,6 +4,7 @@ associated quantities (like boost factors). It also has priors.
 """
 
 import numpy as np
+import lensing_models
 
 def lnprior(parameter_dict, args):
 
@@ -19,10 +20,10 @@ def lnprior(parameter_dict, args):
     if c < 0.1 or c > 20:
         return -np.inf
 
-    if has_multiplicative_bias:
+    if "has_multiplicative_bias" in args:
         Am = parameter_dict["Am"]
         
-    if has_RM_selection:
+    if "has_RM_selection" in args:
         A = parameter_dict["A_matrix"]
         A_prior_means = args["A_matrix_prior_means"]
         A_prior_cov_inv = args["A_matrix_prior_cov_inv"]
@@ -30,11 +31,11 @@ def lnprior(parameter_dict, args):
         ln_pr -= 0.5 * \
             (A - A_prior_means).T @ A_prior_cov_inv @ (A - A_prior_means)
 
-    if has_miscentering:
+    if "has_miscentering" in args:
         f_mis = parameter_dict["f_mis"]
         tau = parameter_dict["tau_mis"]
 
-    if has_boost_factors:
+    if "has_boost_factors" in args:
         B_0 = parameter_dict["B_0"]
         R_scale_boost = parameter_dict["R_scale_boost"]
         
@@ -50,7 +51,7 @@ def lnlike(parameter_dict, args):
     Cov = args["DeltaSigma_cov"]
     
     #Get the model
-    DeltaSigma_model = get_lensing_profile(parameter_dict, args)
+    DeltaSigma_model = lensing_models.get_lensing_profile(parameter_dict, args)
 
     X = (DeltaSigma_data - DeltaSigma_model)
     ln_L -= 0.5 * X @ np.linalg.solve(Cov, X)
@@ -64,15 +65,14 @@ def lnposterior(params, args):
     #This is the part that is tuned by hand for each analysis
     ##########################################
     # Buzzard redMaPPer halo-run analysis below
-    log10_M, c, a2, a3, a4 = params
-    A = np.array([a2, a3, a4])
-    parameter_dict = {"log10_M":log10_M, "M":10**M, "c":c,
-                      "A_matrix":A}
-    """
+    #log10_M, c, a2, a3, a4 = params
+    #A = np.array([a2, a3, a4])
+    #parameter_dict = {"log10_M":log10_M, "M":10**log10_M, "c":c, "A_matrix":A}
+    
     # Buzzard halo same-mass analysis below
     log10_M, c = params
-    parameter_dict = {"log10_M":log10_M, "M":10**M, "c":c}
-    """
+    parameter_dict = {"log10_M":log10_M, "M":10**log10_M, "c":c}
+    
     ##########################################
 
     ln_pr = lnprior(parameter_dict, args)
