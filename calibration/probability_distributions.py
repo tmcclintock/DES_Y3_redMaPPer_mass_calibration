@@ -65,13 +65,13 @@ def lnposterior(params, args):
     #This is the part that is tuned by hand for each analysis
     ##########################################
     # Buzzard redMaPPer halo-run analysis below
-    #log10_M, c, a2, a3, a4 = params
-    #A = np.array([a2, a3, a4])
-    #parameter_dict = {"log10_M":log10_M, "M":10**log10_M, "c":c, "A_matrix":A}
+    log10_M, c, a2, a3, a4 = params
+    A = np.array([a2, a3, a4])
+    parameter_dict = {"log10_M":log10_M, "M":10**log10_M, "c":c, "A_matrix":A}
     
     # Buzzard halo same-mass analysis below
-    log10_M, c = params
-    parameter_dict = {"log10_M":log10_M, "M":10**log10_M, "c":c}
+    #log10_M, c = params
+    #parameter_dict = {"log10_M":log10_M, "M":10**log10_M, "c":c}
     
     ##########################################
 

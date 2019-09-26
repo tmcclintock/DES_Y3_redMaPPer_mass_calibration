@@ -80,7 +80,7 @@ def get_lensing_profile(parameter_dict, args, return_all_parts=False):
     xi_2h = ct.xi.xi_2halo(bias, xi_nl) #Can choose a different xi_mm here
     xi_hm = ct.xi.xi_hm(xi_nfw, xi_2h) #3d halo matter correlation function
 
-    output_dict["r_3d"] = r
+    output_dict["r"] = r
     output_dict["xi_nfw"] = xi_nfw
     output_dict["xi_2h"] = xi_2h
     output_dict["xi_hm"] = xi_hm
@@ -88,13 +88,16 @@ def get_lensing_profile(parameter_dict, args, return_all_parts=False):
     #h Msun/pc^2 comoving
     Sigma = ct.deltasigma.Sigma_at_R(R, r, xi_hm, M, c, Omega_m)
 
-    output_dict["R_2d"] = R
+    output_dict["R"] = R
     output_dict["Sigma"] = Sigma
 
     if "has_RM_selection" in args:
         F_model = 1 + X @ A
         F_model[upper_mask] = 1. #large scales are unaffected
         F_model[lower_mask] = F_model[lowest_index] #constant at small scales
+        DeltaSigma = ct.deltasigma.DeltaSigma_at_R(R, R, Sigma, M, c, Omega_m)
+        output_dict["DeltaSigma"] = DeltaSigma
+        #TODO: figure out a better way to do this recording
         Sigma *= F_model
         output_dict["Sigma_RM_selection"] = Sigma
         output_dict["F_model"] = F_model
@@ -112,9 +115,8 @@ def get_lensing_profile(parameter_dict, args, return_all_parts=False):
         print("Boost factors not implemented yet!")
 
     DeltaSigma = ct.deltasigma.DeltaSigma_at_R(R, R, Sigma, M, c, Omega_m)
-    
-    output_dict["DeltaSigma"] = DeltaSigma
-    
+    output_dict["DeltaSigma_RM_selection"] = DeltaSigma
+
     ####
     #(4) Average over radial bins
     ####
